@@ -4,6 +4,7 @@ require './lib/customer'
 require './lib/product'
 require './lib/purchase'
 require './lib/status'
+require './lib/trunk'
 
 database_configuration = YAML::load(File.open('./db/config.yml'))
 development_configuration = database_configuration['development']
@@ -109,7 +110,7 @@ def customer_login
     customer_name = gets.chomp
     new_customer = Customer.new(:name => customer_name)
     new_customer.save
-    @current_customer = new_customer
+    @current_customer = Customer.where(name: new_customer.name)
   else
     puts "What is your name?"
     customer_name = gets.chomp
@@ -174,15 +175,18 @@ def checkout
     puts "#{index+1}. #{cashier.name}"
   end
   cashier_choice = gets.chomp.to_i
+  total_cost=0
   @current_cashier = Cashier.where(id: Cashier.all[cashier_choice-1])
   new_purchase = Purchase.new(:customer_id => @current_customer.pluck(:id).first, :cashier_id => @current_cashier.pluck(:id).first)
   new_purchase.save
-  customer_products = Product.where(customer_id: @current_customer.pluck(:id).first)
+  customer_products = Product.where(customer_id: @current_customer.pluck(:id))
   customer_products.each do |prod|
-    # INSERT INTO products_purchases (purchase_id, product_id) VALUES (new_purchase.id, prod.id)
-    data = [purchase_id: new_purchase.id, product_id: prod.id]
-    insert('products_purchases', data)
+    new_trunk = Trunk.new(:product_id => prod.id,:purchase_id =>new_purchase.id)
+    new_trunk.save
+    prod.update(status_id: list_product_by_status("Out of Stock"))
+    total_cost += prod.price
   end
+  puts total_cost
 end
 
 def clear
